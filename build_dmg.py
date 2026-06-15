@@ -42,24 +42,12 @@ def main():
 
     # 2. PyInstaller 打包 .app
     print("\n[2/4] PyInstaller 打包...")
-    icon_path = os.path.join(project_dir, "resources", "icon.icns")
+    spec_file = os.path.join(project_dir, "MacCleaner.spec")
     pyinstaller_cmd = [
         sys.executable, "-m", "PyInstaller",
-        "--name", APP_NAME,
-        "--windowed",
         "--noconfirm",
         "--clean",
-        "--icon", icon_path,
-        "--add-data", "src:src",
-        "--add-data", "resources:resources",
-        "--hidden-import", "PyQt6",
-        "--hidden-import", "PyQt6.QtWidgets",
-        "--hidden-import", "PyQt6.QtCore",
-        "--hidden-import", "PyQt6.QtGui",
-        "--hidden-import", "psutil",
-        "--hidden-import", "plistlib",
-        "--osx-bundle-identifier", "com.maccleaner.app",
-        "run.py"
+        spec_file
     ]
     run_cmd(" ".join(pyinstaller_cmd), "PyInstaller 构建 .app")
 
