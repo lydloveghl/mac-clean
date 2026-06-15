@@ -31,7 +31,7 @@ def main():
     print("=" * 50)
 
     # 1. 清理旧构建
-    print("\n[1/5] 清理旧构建...")
+    print("\n[1/4] 清理旧构建...")
     for d in [BUILD_DIR, DIST_DIR, f"{DMG_NAME}.dmg"]:
         if os.path.exists(d):
             if os.path.isdir(d):
@@ -41,7 +41,7 @@ def main():
             print(f"  已删除: {d}")
 
     # 2. PyInstaller 打包 .app
-    print("\n[2/5] PyInstaller 打包...")
+    print("\n[2/4] PyInstaller 打包...")
     pyinstaller_cmd = [
         sys.executable, "-m", "PyInstaller",
         "--name", APP_NAME,
@@ -66,44 +66,36 @@ def main():
         sys.exit(1)
     print(f"  ✅ 已生成: {app_path}")
 
-    # 3. 创建 DMG 背景和设置
-    print("\n[3/5] 准备 DMG 配置...")
+    # 3. 创建 DMG 临时目录
+    print("\n[3/4] 创建 DMG...")
+    dmg_staging = os.path.join(DIST_DIR, "dmg_staging")
+    if os.path.exists(dmg_staging):
+        shutil.rmtree(dmg_staging)
+    os.makedirs(dmg_staging)
 
-    # 创建 dmgbuild settings 文件
-    settings_content = f'''
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+    # 复制 .app 到临时目录
+    shutil.copytree(app_path, os.path.join(dmg_staging, f"{APP_NAME}.app"))
 
-filename = "{DMG_NAME}.dmg"
-volume_name = "{APP_NAME}"
-format = "UDBZ"
-size = "200M"
-files = ["{DIST_DIR}/{APP_NAME}.app"]
-symlinks = {{"Applications": "/Applications"}}
-background = "builtin-retina"
-icon_locations = {{
-    "{APP_NAME}.app": (140, 150),
-    "Applications": (400, 150),
-}}
-window_rect = ((200, 120), (560, 350))
-icon_size = 80
-text_size = 14
-'''
-    with open("dmg_settings.py", "w", encoding="utf-8") as f:
-        f.write(settings_content)
+    # 创建 Applications 软链接
+    os.symlink("/Applications", os.path.join(dmg_staging, "Applications"))
 
-    # 4. 构建 DMG
-    print("\n[4/5] 构建 DMG...")
-    dmg_cmd = f'{sys.executable} -m dmgbuild -s dmg_settings.py "{APP_NAME}" "{DMG_NAME}.dmg"'
-    run_cmd(dmg_cmd, "dmgbuild 生成 DMG")
-
-    # 5. 清理临时文件
-    print("\n[5/5] 清理临时文件...")
-    for f in ["dmg_settings.py"]:
-        if os.path.exists(f):
-            os.remove(f)
-
+    # 使用 hdiutil 创建 DMG
     dmg_path = os.path.join(project_dir, f"{DMG_NAME}.dmg")
+    if os.path.exists(dmg_path):
+        os.remove(dmg_path)
+
+    hdiutil_cmd = (
+        f'hdiutil create -volname "{APP_NAME}" '
+        f'-srcfolder "{dmg_staging}" '
+        f'-ov -format UDZO '
+        f'"{dmg_path}"'
+    )
+    run_cmd(hdiutil_cmd, "hdiutil 生成 DMG")
+
+    # 4. 清理
+    print("\n[4/4] 清理临时文件...")
+    shutil.rmtree(dmg_staging, ignore_errors=True)
+
     if os.path.exists(dmg_path):
         size_mb = os.path.getsize(dmg_path) / (1024 * 1024)
         print(f"\n{'=' * 50}")
