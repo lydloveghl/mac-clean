@@ -57,6 +57,23 @@ def main():
         sys.exit(1)
     print(f"  ✅ 已生成: {app_path}")
 
+    # 2.5 注入 qt.conf，防止 Qt 在静态初始化时调用 CFBundleGetMainBundle() 导致崩溃
+    print("\n[2.5/4] 注入 qt.conf...")
+    resources_dir = os.path.join(app_path, "Contents", "Resources")
+    os.makedirs(resources_dir, exist_ok=True)
+    qt_conf_path = os.path.join(resources_dir, "qt.conf")
+    # Prefix 相对于 Contents/Resources/ 目录解析
+    # 实际布局:
+    #   Contents/Frameworks/QtCore (框架 dylib)
+    #   Contents/Frameworks/PyQt6/Qt6/plugins/ (Qt 插件)
+    #   Contents/Frameworks/PyQt6/Qt6/lib/ (额外库)
+    with open(qt_conf_path, 'w') as f:
+        f.write("[Paths]\n")
+        f.write("Prefix = ../Frameworks/PyQt6/Qt6\n")
+        f.write("Libraries = ../Frameworks\n")
+        f.write("Plugins = plugins\n")
+    print(f"  ✅ 已写入: {qt_conf_path}")
+
     # 3. 创建 DMG 临时目录
     print("\n[3/4] 创建 DMG...")
     dmg_staging = os.path.join(DIST_DIR, "dmg_staging")
